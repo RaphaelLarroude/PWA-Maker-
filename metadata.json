@@ -1,0 +1,5 @@
+{
+  "name": "Instant PWA Wrapper",
+  "description": "Generate a standalone PWA wrapper for any URL instantly.",
+  "requestFramePermissions": []
+}
