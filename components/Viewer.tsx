@@ -14,8 +14,8 @@ export const Viewer: React.FC<ViewerProps> = ({ url, onExit }) => {
   // Ensure protocol
   const safeUrl = url.startsWith('http') ? url : `https://${url}`;
   
-  // Keep metadata consistent
-  usePwaSetup(safeUrl);
+  // Get metadata and THEME COLOR
+  const { themeColor } = usePwaSetup(safeUrl);
 
   // Timeout to show "Help" message if site takes too long (likely X-Frame-Options block)
   useEffect(() => {
@@ -38,7 +38,10 @@ export const Viewer: React.FC<ViewerProps> = ({ url, onExit }) => {
   };
 
   return (
-    <div className="w-screen h-[100dvh] bg-white flex flex-col overflow-hidden relative group">
+    <div 
+      className="w-screen h-[100dvh] flex flex-col overflow-hidden relative group transition-colors duration-500"
+      style={{ backgroundColor: themeColor }}
+    >
       
       {/* Controls UI - Floating Menu */}
       {/* Positioned to respect iOS Safe Area */}
@@ -93,8 +96,11 @@ export const Viewer: React.FC<ViewerProps> = ({ url, onExit }) => {
          )}
       </div>
 
-      {/* Status Bar Shim */}
-      <div className="h-[env(safe-area-inset-top)] w-full bg-black shrink-0" />
+      {/* Status Bar Shim - Uses extracted color */}
+      <div 
+        className="h-[env(safe-area-inset-top)] w-full shrink-0 transition-colors duration-500" 
+        style={{ backgroundColor: themeColor }}
+      />
       
       {/* Main Content */}
       <div className="flex-1 relative w-full h-full bg-white">
@@ -126,8 +132,11 @@ export const Viewer: React.FC<ViewerProps> = ({ url, onExit }) => {
           )}
       </div>
       
-      {/* Safe Area Shim Bottom */}
-      <div className="h-[env(safe-area-inset-bottom)] w-full bg-black shrink-0" />
+      {/* Safe Area Shim Bottom - Uses extracted color */}
+      <div 
+        className="h-[env(safe-area-inset-bottom)] w-full shrink-0 transition-colors duration-500" 
+        style={{ backgroundColor: themeColor }}
+      />
     </div>
   );
 };

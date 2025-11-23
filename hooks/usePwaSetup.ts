@@ -3,6 +3,7 @@ import { ManifestOptions } from '../types';
 
 export const usePwaSetup = (targetUrl: string | null) => {
   const [iconUrl, setIconUrl] = useState<string>('');
+  const [themeColor, setThemeColor] = useState<string>('#000000');
 
   useEffect(() => {
     if (!targetUrl) return;
@@ -51,10 +52,46 @@ export const usePwaSetup = (targetUrl: string | null) => {
     
     setIconUrl(hdIconUrl);
 
-    // 3. Update document title (Browser Tab)
+    // 3. Color Extraction Logic
+    if (isYouTubeProxy) {
+        setThemeColor('#0f0f0f'); // Dark mode for YouTube
+        updateThemeTags('#0f0f0f');
+    } else {
+        // Try to recover saved color first to avoid flash
+        const savedColor = localStorage.getItem(`theme_${hostname}`);
+        if (savedColor) {
+            setThemeColor(savedColor);
+            updateThemeTags(savedColor);
+        }
+
+        // Extract fresh color from icon
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.src = hdIconUrl;
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1;
+                canvas.height = 1;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, 1, 1);
+                    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+                    const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+                    setThemeColor(hex);
+                    updateThemeTags(hex);
+                    localStorage.setItem(`theme_${hostname}`, hex);
+                }
+            } catch (e) {
+                console.warn("Could not extract color", e);
+            }
+        };
+    }
+
+    // 4. Update document title (Browser Tab)
     document.title = hostname;
 
-    // 4. Update iOS App Title Meta (CRITICAL for "Add to Home Screen" default name)
+    // 5. Update iOS App Title Meta (CRITICAL for "Add to Home Screen" default name)
     const metaTitle = document.getElementById('dynamic-app-title') as HTMLMetaElement;
     if (metaTitle) metaTitle.content = hostname;
     
@@ -64,17 +101,14 @@ export const usePwaSetup = (targetUrl: string | null) => {
         appleTitle.setAttribute('content', hostname);
     }
 
-    // 5. Update Favicon & Apple Touch Icon
+    // 6. Update Favicon & Apple Touch Icon
     const linkIcon = document.getElementById('dynamic-favicon') as HTMLLinkElement;
     if (linkIcon) linkIcon.href = hdIconUrl;
 
     const linkApple = document.getElementById('dynamic-apple-icon') as HTMLLinkElement;
     if (linkApple) linkApple.href = hdIconUrl;
 
-    // 6. Generate Dynamic Manifest
-    // We add ?mode=standalone to the start_url. 
-    // This allows App.tsx to detect if the app was launched via the Home Screen icon
-    // and skip the generator UI immediately.
+    // 7. Generate Dynamic Manifest
     const baseUrl = window.location.href.split('#')[0].split('?')[0];
     const safeStartUrl = `${baseUrl}?mode=standalone#site=${encodeURIComponent(targetUrl)}`;
 
@@ -83,8 +117,8 @@ export const usePwaSetup = (targetUrl: string | null) => {
       short_name: hostname,
       start_url: safeStartUrl,
       display: 'standalone',
-      background_color: '#000000',
-      theme_color: '#000000',
+      background_color: themeColor,
+      theme_color: themeColor,
       icons: [
         {
           src: hdIconUrl,
@@ -110,7 +144,12 @@ export const usePwaSetup = (targetUrl: string | null) => {
       URL.revokeObjectURL(manifestURL);
     };
 
-  }, [targetUrl]);
+  }, [targetUrl, themeColor]); // Re-run if themeColor updates to update manifest
 
-  return { iconUrl };
+  return { iconUrl, themeColor };
 };
+
+function updateThemeTags(color: string) {
+    const metaTheme = document.getElementById('dynamic-theme-color') as HTMLMetaElement;
+    if (metaTheme) metaTheme.content = color;
+}
