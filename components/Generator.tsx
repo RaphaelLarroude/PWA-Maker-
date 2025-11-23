@@ -27,8 +27,29 @@ export const Generator: React.FC<GeneratorProps> = ({ initialUrl, onUrlConfirm, 
     if (!inputUrl) return;
     
     let formattedUrl = inputUrl.trim();
+    
+    // Ensure Protocol
     if (!/^https?:\/\//i.test(formattedUrl)) {
         formattedUrl = `https://${formattedUrl}`;
+    }
+
+    // YOUTUBE SPECIAL HANDLING
+    // Official YouTube blocks iframes (X-Frame-Options). 
+    // We convert it to Invidious (yewtu.be) which works perfectly as a PWA.
+    try {
+        const urlObj = new URL(formattedUrl);
+        const domain = urlObj.hostname.toLowerCase();
+        
+        if (domain.includes('youtube.com') || domain.includes('youtu.be')) {
+            // Keep the path/query (video ID), but change host to Invidious instance
+            urlObj.hostname = 'yewtu.be';
+            formattedUrl = urlObj.toString();
+        }
+    } catch (e) {
+        // If parsing fails but string contains youtube, force root
+        if (formattedUrl.includes('youtube')) {
+            formattedUrl = 'https://yewtu.be';
+        }
     }
     
     setInputUrl(formattedUrl);
@@ -67,7 +88,7 @@ export const Generator: React.FC<GeneratorProps> = ({ initialUrl, onUrlConfirm, 
                 type="text"
                 id="url-input"
                 className="block w-full px-4 py-4 bg-slate-900 border-2 border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 text-white placeholder-slate-600 outline-none transition-all"
-                placeholder="ex: instagram.com"
+                placeholder="ex: youtube.com"
                 value={inputUrl}
                 onChange={(e) => setInputUrl(e.target.value)}
                 autoComplete="off"

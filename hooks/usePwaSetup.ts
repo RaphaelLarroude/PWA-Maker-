@@ -8,26 +8,30 @@ export const usePwaSetup = (targetUrl: string | null) => {
     if (!targetUrl) return;
 
     let hostname = 'App';
-    try {
-      // 1. Clean Hostname Logic
-      const urlObj = new URL(targetUrl);
-      hostname = urlObj.hostname;
-      
-      // Remove 'www.'
-      if (hostname.startsWith('www.')) {
-        hostname = hostname.slice(4);
-      }
+    // Helper to check for the YouTube Proxy
+    const isYouTubeProxy = targetUrl.includes('yewtu.be');
 
-      // Capitalize first letter
-      hostname = hostname.charAt(0).toUpperCase() + hostname.slice(1);
-      
-      // Remove generic TLDs for display if simple (optional, but keeps names clean like 'Google' instead of 'Google.com')
-      // For now, keeping the full clean hostname is safer for uniqueness, 
-      // but let's just use the domain part for the title.
-      const domainParts = hostname.split('.');
-      if (domainParts.length > 1) {
-          // e.g. "Instagram.com" -> "Instagram"
-          hostname = domainParts[0].charAt(0).toUpperCase() + domainParts[0].slice(1);
+    try {
+      if (isYouTubeProxy) {
+          // Force branding for YouTube proxy
+          hostname = 'YouTube';
+      } else {
+          // 1. Clean Hostname Logic for other sites
+          const urlObj = new URL(targetUrl);
+          hostname = urlObj.hostname;
+          
+          // Remove 'www.'
+          if (hostname.startsWith('www.')) {
+            hostname = hostname.slice(4);
+          }
+
+          // Capitalize first letter
+          hostname = hostname.charAt(0).toUpperCase() + hostname.slice(1);
+          
+          const domainParts = hostname.split('.');
+          if (domainParts.length > 1) {
+              hostname = domainParts[0].charAt(0).toUpperCase() + domainParts[0].slice(1);
+          }
       }
 
     } catch (e) {
@@ -35,9 +39,15 @@ export const usePwaSetup = (targetUrl: string | null) => {
     }
 
     // 2. High Resolution Icon (Unavatar)
-    // Using unavatar.io gives significantly better quality than Google's favicon service
-    const cleanDomain = new URL(targetUrl).hostname;
-    const hdIconUrl = `https://unavatar.io/${cleanDomain}?fallback=https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=128`;
+    let hdIconUrl = '';
+    
+    if (isYouTubeProxy) {
+        // Force Official YouTube Icon from Unavatar
+        hdIconUrl = `https://unavatar.io/youtube.com?sz=512`;
+    } else {
+        const cleanDomain = new URL(targetUrl).hostname;
+        hdIconUrl = `https://unavatar.io/${cleanDomain}?fallback=https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=128`;
+    }
     
     setIconUrl(hdIconUrl);
 
