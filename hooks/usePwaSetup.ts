@@ -7,27 +7,25 @@ export const usePwaSetup = (targetUrl: string | null) => {
   useEffect(() => {
     if (!targetUrl) return;
 
-    // Use Google's favicon service to get a high-res icon
-    const googleIconUrl = `https://www.google.com/s2/favicons?domain=${targetUrl}&sz=512`;
+    // Use Google's favicon service with higher res request
+    const googleIconUrl = `https://www.google.com/s2/favicons?domain=${targetUrl}&sz=256`;
     setIconUrl(googleIconUrl);
 
     // Parse hostname for naming
     let hostname = 'App';
     try {
       hostname = new URL(targetUrl).hostname;
-      // Remove www. and .com etc for a cleaner short name
       const parts = hostname.split('.');
       const mainPart = parts[0] === 'www' ? parts[1] : parts[0];
-      // Capitalize
       hostname = mainPart.charAt(0).toUpperCase() + mainPart.slice(1);
     } catch (e) {
       console.error("Invalid URL for naming", e);
     }
 
-    // 1. Update document title (Browser Tab / App Switcher)
+    // 1. Update document title
     document.title = hostname;
 
-    // 2. Update iOS App Title Meta (Home Screen Name)
+    // 2. Update iOS App Title Meta
     const metaTitle = document.getElementById('dynamic-app-title') as HTMLMetaElement;
     if (metaTitle) metaTitle.content = hostname;
 
@@ -35,18 +33,24 @@ export const usePwaSetup = (targetUrl: string | null) => {
     const linkIcon = document.getElementById('dynamic-favicon') as HTMLLinkElement;
     if (linkIcon) linkIcon.href = googleIconUrl;
 
-    // 4. Update Apple Touch Icon (Crucial for iOS Home Screen Icon)
+    // 4. Update Apple Touch Icon
     const linkApple = document.getElementById('dynamic-apple-icon') as HTMLLinkElement;
     if (linkApple) linkApple.href = googleIconUrl;
 
-    // 5. Generate and inject Manifest (For Android/Chrome)
+    // 5. Generate and inject Manifest
+    // CRITICAL: We use hash navigation (#site=...) for start_url because query params (?) 
+    // are often stripped by iOS or static hosts when launching PWAs.
+    // We construct the start_url to point to the current root + the hash config.
+    const baseUrl = window.location.href.split('#')[0];
+    const safeStartUrl = `${baseUrl}#site=${encodeURIComponent(targetUrl)}`;
+
     const manifest: ManifestOptions = {
       name: hostname,
       short_name: hostname,
-      start_url: window.location.href, // Ensures the PWA opens with the ?site= query param
+      start_url: safeStartUrl,
       display: 'standalone',
-      background_color: '#000000',
-      theme_color: '#000000',
+      background_color: '#0f172a', // Matching Slate-900
+      theme_color: '#0f172a',
       icons: [
         {
           src: googleIconUrl,
@@ -68,7 +72,6 @@ export const usePwaSetup = (targetUrl: string | null) => {
     const linkManifest = document.getElementById('dynamic-manifest') as HTMLLinkElement;
     if (linkManifest) linkManifest.href = manifestURL;
 
-    // Cleanup blob on unmount/change
     return () => {
       URL.revokeObjectURL(manifestURL);
     };
