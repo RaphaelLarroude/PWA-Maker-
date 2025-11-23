@@ -39,16 +39,22 @@ export const usePwaSetup = (targetUrl: string | null) => {
       console.error("Invalid URL for naming", e);
     }
     
-    // Only set initial name if we haven't set a custom one yet, or if it's a fresh url
-    // For simplicity in this hook, we reset on URL change
+    // Set initial name
     setAppName(initialName);
 
-    // 2. Async Fetch Real Page Title (The "Magic")
+    // 2. Async Fetch Real Page Title
     if (!isYouTubeProxy) {
-        // We use a CORS proxy to fetch the HTML and extract <title>
         const fetchTitle = async () => {
             try {
-                const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`);
+                // Using a timeout to prevent hanging if the proxy is slow
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), 3000);
+
+                const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`, {
+                  signal: controller.signal
+                });
+                clearTimeout(id);
+
                 const data = await response.json();
                 if (data.contents) {
                     const parser = new DOMParser();
@@ -56,32 +62,29 @@ export const usePwaSetup = (targetUrl: string | null) => {
                     const titleTag = doc.querySelector('title');
                     if (titleTag && titleTag.innerText) {
                         let realTitle = titleTag.innerText.trim();
-                        // Optional: Clean common suffixes like " - Home", " | Official Site"
-                        // realTitle = realTitle.split(' - ')[0].split(' | ')[0]; 
-                        if (realTitle) {
+                        // Clean common suffixes
+                        realTitle = realTitle.replace(/ - .*/, '').replace(/ \| .*/, '');
+                        if (realTitle.length > 0 && realTitle.length < 30) {
                             setAppName(realTitle);
                         }
                     }
                 }
             } catch (err) {
-                console.warn("Failed to fetch real title", err);
+                console.warn("Failed to fetch real title, keeping guessed name", err);
             }
         };
-        // Debounce slightly or just call
         fetchTitle();
     }
 
-    // 3. Icon Logic (Favicon)
+    // 3. Icon Logic (Google S2 API - More Reliable than T3)
     let hdIconUrl = '';
-    if (isYouTubeProxy) {
-        hdIconUrl = `https://www.google.com/s2/favicons?domain=youtube.com&sz=512`;
-    } else {
-        try {
-            const cleanDomain = new URL(targetUrl).hostname;
-            hdIconUrl = `https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=512`;
-        } catch(e) {
-            hdIconUrl = '';
-        }
+    try {
+        const urlObj = new URL(targetUrl);
+        // Use Google's S2 service which is standard and stable
+        // sz=256 requests a high-res icon
+        hdIconUrl = `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=256`;
+    } catch(e) {
+        hdIconUrl = '';
     }
     setIconUrl(hdIconUrl);
 
@@ -99,27 +102,41 @@ export const usePwaSetup = (targetUrl: string | null) => {
             updateThemeTags(savedColor);
         }
 
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        img.src = hdIconUrl;
-        img.onload = () => {
-            try {
-                const canvas = document.createElement('canvas');
-                canvas.width = 1;
-                canvas.height = 1;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.drawImage(img, 0, 0, 1, 1);
-                    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-                    const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-                    setThemeColor(hex);
-                    updateThemeTags(hex);
-                    localStorage.setItem(`theme_${hostname}`, hex);
+        if (hdIconUrl) {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.src = hdIconUrl;
+            
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 1;
+                    canvas.height = 1;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.drawImage(img, 0, 0, 1, 1);
+                        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+                        const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+                        
+                        // Validate hex
+                        if (hex.length === 7) {
+                            setThemeColor(hex);
+                            updateThemeTags(hex);
+                            localStorage.setItem(`theme_${hostname}`, hex);
+                        }
+                    }
+                } catch (e) {
+                    // If CORS fails (security error on getImageData), we just don't set the color
+                    // This happens often with Google S2, which is fine, we default to black/slate
+                    console.warn("Could not extract color due to CORS", e);
                 }
-            } catch (e) {
-                console.warn("Could not extract color", e);
-            }
-        };
+            };
+            
+            // Handle error just in case image fails to load
+            img.onerror = () => {
+                 console.warn("Icon failed to load for color extraction");
+            };
+        }
     }
   }, [targetUrl]);
 
@@ -149,7 +166,7 @@ export const usePwaSetup = (targetUrl: string | null) => {
 
     const manifest: ManifestOptions = {
       name: appName,
-      short_name: appName.length > 12 ? appName.slice(0, 12) + '...' : appName, // Short name for icon label
+      short_name: appName.length > 12 ? appName.slice(0, 12) + '...' : appName,
       start_url: safeStartUrl,
       display: 'standalone',
       background_color: themeColor,

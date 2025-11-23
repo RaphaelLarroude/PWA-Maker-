@@ -11,6 +11,7 @@ interface GeneratorProps {
 export const Generator: React.FC<GeneratorProps> = ({ initialUrl, onUrlConfirm, onReset, onForceOpen }) => {
   const [inputUrl, setInputUrl] = useState(initialUrl || '');
   const [isConfirmed, setIsConfirmed] = useState(!!initialUrl);
+  const [imgError, setImgError] = useState(false);
   
   const activeUrl = isConfirmed ? (inputUrl.startsWith('http') ? inputUrl : `https://${inputUrl}`) : null;
   const { iconUrl, appName, setAppName } = usePwaSetup(activeUrl);
@@ -21,6 +22,11 @@ export const Generator: React.FC<GeneratorProps> = ({ initialUrl, onUrlConfirm, 
       setIsConfirmed(true);
     }
   }, [initialUrl]);
+
+  // Reset image error state when iconUrl changes
+  useEffect(() => {
+    setImgError(false);
+  }, [iconUrl]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +62,7 @@ export const Generator: React.FC<GeneratorProps> = ({ initialUrl, onUrlConfirm, 
   const handleResetInternal = () => {
     setIsConfirmed(false);
     setInputUrl('');
+    setImgError(false);
     if (onReset) onReset();
   };
 
@@ -107,15 +114,16 @@ export const Generator: React.FC<GeneratorProps> = ({ initialUrl, onUrlConfirm, 
              {/* Logo Section */}
              <div className="flex flex-col items-center mb-8">
                 <div className="relative w-32 h-32 bg-white rounded-[28px] mb-4 flex items-center justify-center shadow-2xl ring-1 ring-white/10 overflow-hidden">
-                   {iconUrl ? (
+                   {iconUrl && !imgError ? (
                        <img 
                         src={iconUrl} 
                         alt="App Icon" 
                         className="w-full h-full object-cover" 
                         loading="eager"
+                        onError={() => setImgError(true)}
                        />
                    ) : (
-                       <span className="text-5xl">📱</span>
+                       <span className="text-5xl select-none">📱</span>
                    )}
                 </div>
                 

@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Criador de App PWA</title>
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
     <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -19,14 +16,17 @@
     <link id="dynamic-manifest" rel="manifest" href="/manifest.json">
     <meta id="dynamic-theme-color" name="theme-color" content="#0f172a">
     <meta id="dynamic-app-title" name="apple-mobile-web-app-title" content="PWA Maker">
+    
+    <!-- Styles usually injected by Vite, but Tailwind CDN kept for simplicity if CSS setup is minimal -->
+    <script src="https://cdn.tailwindcss.com"></script>
   <script type="importmap">
 {
   "imports": {
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "vite": "https://aistudiocdn.com/vite@^7.2.4",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
   }
 }
 </script>
