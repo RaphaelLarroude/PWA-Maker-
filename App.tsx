@@ -6,14 +6,17 @@ const App: React.FC = () => {
   const [targetUrl, setTargetUrl] = useState<string | null>(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [forceViewer, setForceViewer] = useState(false); // New state for manual override
 
   useEffect(() => {
     // 1. Check if running in Standalone mode
     const checkStandalone = () => {
       const isIos = (window.navigator as any).standalone === true;
       const isMatchMedia = window.matchMedia('(display-mode: standalone)').matches;
-      // Also treat as standalone if inside an iframe (optional, depends on use case)
-      const isStandaloneMode = isIos || isMatchMedia;
+      // Also check if we are full screen height (common heuristic)
+      const isFullScreen = window.innerHeight === window.screen.height;
+      
+      const isStandaloneMode = isIos || isMatchMedia || isFullScreen;
       setIsStandalone(isStandaloneMode);
       return isStandaloneMode;
     };
@@ -30,8 +33,6 @@ const App: React.FC = () => {
     }
 
     // B. Check LocalStorage (Fallback for iOS PWA reload issues)
-    // Only check local storage if we are effectively in "App Mode" logic 
-    // or if we found nothing else.
     if (!foundUrl) {
       const savedUrl = localStorage.getItem('pwa_target_url');
       if (savedUrl) {
@@ -41,11 +42,10 @@ const App: React.FC = () => {
 
     if (foundUrl) {
       setTargetUrl(foundUrl);
-      // Ensure we re-save to local storage just in case it came from Hash
       localStorage.setItem('pwa_target_url', foundUrl);
     }
 
-    setIsReady(true); // Prevent flashing content
+    setIsReady(true);
 
     window.addEventListener('resize', checkStandalone);
     return () => window.removeEventListener('resize', checkStandalone);
@@ -53,29 +53,32 @@ const App: React.FC = () => {
 
   const handleUrlConfirm = (url: string) => {
     setTargetUrl(url);
-    
-    // Save to Local Storage immediately
     localStorage.setItem('pwa_target_url', url);
-
-    // Update URL hash without reloading so "Add to Home Screen" captures the state
     window.location.hash = `site=${encodeURIComponent(url)}`;
   };
 
   const handleReset = () => {
     setTargetUrl(null);
+    setForceViewer(false); // Reset force state
     localStorage.removeItem('pwa_target_url');
     window.location.hash = '';
     window.history.replaceState(null, '', window.location.pathname);
   };
 
-  if (!isReady) return null; // Avoid flicker
+  if (!isReady) return null;
 
-  // Logic: 
-  // If we are in Standalone mode AND have a URL, show Viewer.
-  // OR if we are NOT in standalone but have a URL, show Generator (preview mode).
-  
-  if (isStandalone && targetUrl) {
-    return <Viewer url={targetUrl} />;
+  // LOGIC: Show viewer if:
+  // 1. We are in standalone mode AND have a URL
+  // 2. OR the user clicked "Open App" (forceViewer) AND have a URL
+  const shouldShowViewer = (isStandalone || forceViewer) && targetUrl;
+
+  if (shouldShowViewer && targetUrl) {
+    return (
+      <Viewer 
+        url={targetUrl} 
+        onExit={() => setForceViewer(false)} 
+      />
+    );
   }
 
   return (
@@ -83,6 +86,7 @@ const App: React.FC = () => {
       initialUrl={targetUrl} 
       onUrlConfirm={handleUrlConfirm}
       onReset={handleReset}
+      onForceOpen={() => setForceViewer(true)} // Pass the force handler
     />
   );
 };
