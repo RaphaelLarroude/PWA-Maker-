@@ -7,56 +7,82 @@ export const usePwaSetup = (targetUrl: string | null) => {
   useEffect(() => {
     if (!targetUrl) return;
 
-    // Use Google's favicon service with higher res request (512px)
-    const googleIconUrl = `https://www.google.com/s2/favicons?domain=${targetUrl}&sz=512`;
-    setIconUrl(googleIconUrl);
-
-    // Parse hostname for naming
     let hostname = 'App';
     try {
-      hostname = new URL(targetUrl).hostname;
-      const parts = hostname.split('.');
-      const mainPart = parts[0] === 'www' ? parts[1] : parts[0];
-      hostname = mainPart.charAt(0).toUpperCase() + mainPart.slice(1);
+      // 1. Clean Hostname Logic
+      const urlObj = new URL(targetUrl);
+      hostname = urlObj.hostname;
+      
+      // Remove 'www.'
+      if (hostname.startsWith('www.')) {
+        hostname = hostname.slice(4);
+      }
+
+      // Capitalize first letter
+      hostname = hostname.charAt(0).toUpperCase() + hostname.slice(1);
+      
+      // Remove generic TLDs for display if simple (optional, but keeps names clean like 'Google' instead of 'Google.com')
+      // For now, keeping the full clean hostname is safer for uniqueness, 
+      // but let's just use the domain part for the title.
+      const domainParts = hostname.split('.');
+      if (domainParts.length > 1) {
+          // e.g. "Instagram.com" -> "Instagram"
+          hostname = domainParts[0].charAt(0).toUpperCase() + domainParts[0].slice(1);
+      }
+
     } catch (e) {
       console.error("Invalid URL for naming", e);
     }
 
-    // 1. Update document title
+    // 2. High Resolution Icon (Unavatar)
+    // Using unavatar.io gives significantly better quality than Google's favicon service
+    const cleanDomain = new URL(targetUrl).hostname;
+    const hdIconUrl = `https://unavatar.io/${cleanDomain}?fallback=https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=128`;
+    
+    setIconUrl(hdIconUrl);
+
+    // 3. Update document title (Browser Tab)
     document.title = hostname;
 
-    // 2. Update iOS App Title Meta
+    // 4. Update iOS App Title Meta (CRITICAL for "Add to Home Screen" default name)
     const metaTitle = document.getElementById('dynamic-app-title') as HTMLMetaElement;
     if (metaTitle) metaTitle.content = hostname;
+    
+    // Also update standard apple-mobile-web-app-title if it exists separately
+    let appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (appleTitle) {
+        appleTitle.setAttribute('content', hostname);
+    }
 
-    // 3. Update Favicon
+    // 5. Update Favicon & Apple Touch Icon
     const linkIcon = document.getElementById('dynamic-favicon') as HTMLLinkElement;
-    if (linkIcon) linkIcon.href = googleIconUrl;
+    if (linkIcon) linkIcon.href = hdIconUrl;
 
-    // 4. Update Apple Touch Icon
     const linkApple = document.getElementById('dynamic-apple-icon') as HTMLLinkElement;
-    if (linkApple) linkApple.href = googleIconUrl;
+    if (linkApple) linkApple.href = hdIconUrl;
 
-    // 5. Generate and inject Manifest dynamically
-    // This allows the PWA installation to inherit the target site's identity
-    const baseUrl = window.location.href.split('#')[0];
-    const safeStartUrl = `${baseUrl}#site=${encodeURIComponent(targetUrl)}`;
+    // 6. Generate Dynamic Manifest
+    // We add ?mode=standalone to the start_url. 
+    // This allows App.tsx to detect if the app was launched via the Home Screen icon
+    // and skip the generator UI immediately.
+    const baseUrl = window.location.href.split('#')[0].split('?')[0];
+    const safeStartUrl = `${baseUrl}?mode=standalone#site=${encodeURIComponent(targetUrl)}`;
 
     const manifest: ManifestOptions = {
       name: hostname,
       short_name: hostname,
       start_url: safeStartUrl,
       display: 'standalone',
-      background_color: '#000000', // Standard black background for native feel
-      theme_color: '#000000', // Matches status bar for most apps
+      background_color: '#000000',
+      theme_color: '#000000',
       icons: [
         {
-          src: googleIconUrl,
+          src: hdIconUrl,
           sizes: "192x192",
           type: "image/png"
         },
         {
-          src: googleIconUrl,
+          src: hdIconUrl,
           sizes: "512x512",
           type: "image/png"
         }

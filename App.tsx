@@ -6,14 +6,13 @@ const App: React.FC = () => {
   const [targetUrl, setTargetUrl] = useState<string | null>(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const [forceViewer, setForceViewer] = useState(false); // New state for manual override
+  const [forceViewer, setForceViewer] = useState(false);
 
   useEffect(() => {
     // 1. Check if running in Standalone mode
     const checkStandalone = () => {
       const isIos = (window.navigator as any).standalone === true;
       const isMatchMedia = window.matchMedia('(display-mode: standalone)').matches;
-      // Also check if we are full screen height (common heuristic)
       const isFullScreen = window.innerHeight === window.screen.height;
       
       const isStandaloneMode = isIos || isMatchMedia || isFullScreen;
@@ -21,9 +20,9 @@ const App: React.FC = () => {
       return isStandaloneMode;
     };
 
-    const standalone = checkStandalone();
+    checkStandalone();
 
-    // 2. Retrieve URL Logic (Priority: Hash -> LocalStorage)
+    // 2. Retrieve URL Logic
     let foundUrl: string | null = null;
 
     // A. Check Hash (most reliable for direct sharing)
@@ -32,7 +31,7 @@ const App: React.FC = () => {
       foundUrl = decodeURIComponent(hash.replace('#site=', ''));
     }
 
-    // B. Check LocalStorage (Fallback for iOS PWA reload issues)
+    // B. Check LocalStorage (Fallback)
     if (!foundUrl) {
       const savedUrl = localStorage.getItem('pwa_target_url');
       if (savedUrl) {
@@ -59,24 +58,38 @@ const App: React.FC = () => {
 
   const handleReset = () => {
     setTargetUrl(null);
-    setForceViewer(false); // Reset force state
+    setForceViewer(false);
     localStorage.removeItem('pwa_target_url');
-    window.location.hash = '';
-    window.history.replaceState(null, '', window.location.pathname);
+    // Clean URL params and hash
+    const baseUrl = window.location.pathname;
+    window.history.replaceState(null, '', baseUrl);
   };
 
   if (!isReady) return null;
 
   // LOGIC: Show viewer if:
-  // 1. We are in standalone mode AND have a URL
-  // 2. OR the user clicked "Open App" (forceViewer) AND have a URL
-  const shouldShowViewer = (isStandalone || forceViewer) && targetUrl;
+  // 1. We are in standalone mode (OS detection)
+  // 2. OR User clicked "Open App" (forceViewer)
+  // 3. OR the URL contains "?mode=standalone" (This comes from the Manifest start_url)
+  const params = new URLSearchParams(window.location.search);
+  const isManifestLaunch = params.get('mode') === 'standalone';
+
+  const shouldShowViewer = (isStandalone || forceViewer || isManifestLaunch) && targetUrl;
 
   if (shouldShowViewer && targetUrl) {
     return (
       <Viewer 
         url={targetUrl} 
-        onExit={() => setForceViewer(false)} 
+        onExit={() => {
+           setForceViewer(false);
+           // If we are in manifest mode, we might want to actually reset the logic? 
+           // Usually exit means "Back to settings".
+           if(isManifestLaunch) {
+               // Remove the mode param so they see the generator
+               const newUrl = window.location.pathname + window.location.hash;
+               window.history.replaceState(null, '', newUrl);
+           }
+        }} 
       />
     );
   }
@@ -86,7 +99,7 @@ const App: React.FC = () => {
       initialUrl={targetUrl} 
       onUrlConfirm={handleUrlConfirm}
       onReset={handleReset}
-      onForceOpen={() => setForceViewer(true)} // Pass the force handler
+      onForceOpen={() => setForceViewer(true)}
     />
   );
 };
