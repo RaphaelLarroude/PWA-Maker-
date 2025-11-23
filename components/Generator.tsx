@@ -13,7 +13,7 @@ export const Generator: React.FC<GeneratorProps> = ({ initialUrl, onUrlConfirm, 
   const [isConfirmed, setIsConfirmed] = useState(!!initialUrl);
   
   const activeUrl = isConfirmed ? (inputUrl.startsWith('http') ? inputUrl : `https://${inputUrl}`) : null;
-  const { iconUrl } = usePwaSetup(activeUrl);
+  const { iconUrl, appName, setAppName } = usePwaSetup(activeUrl);
 
   useEffect(() => {
     if (initialUrl) {
@@ -34,19 +34,15 @@ export const Generator: React.FC<GeneratorProps> = ({ initialUrl, onUrlConfirm, 
     }
 
     // YOUTUBE SPECIAL HANDLING
-    // Official YouTube blocks iframes (X-Frame-Options). 
-    // We convert it to Invidious (yewtu.be) which works perfectly as a PWA.
     try {
         const urlObj = new URL(formattedUrl);
         const domain = urlObj.hostname.toLowerCase();
         
         if (domain.includes('youtube.com') || domain.includes('youtu.be')) {
-            // Keep the path/query (video ID), but change host to Invidious instance
             urlObj.hostname = 'yewtu.be';
             formattedUrl = urlObj.toString();
         }
     } catch (e) {
-        // If parsing fails but string contains youtube, force root
         if (formattedUrl.includes('youtube')) {
             formattedUrl = 'https://yewtu.be';
         }
@@ -110,7 +106,7 @@ export const Generator: React.FC<GeneratorProps> = ({ initialUrl, onUrlConfirm, 
              
              {/* Logo Section */}
              <div className="flex flex-col items-center mb-8">
-                <div className="relative w-32 h-32 bg-slate-900 rounded-[28px] mb-4 flex items-center justify-center shadow-2xl ring-1 ring-white/10 overflow-hidden">
+                <div className="relative w-32 h-32 bg-white rounded-[28px] mb-4 flex items-center justify-center shadow-2xl ring-1 ring-white/10 overflow-hidden">
                    {iconUrl ? (
                        <img 
                         src={iconUrl} 
@@ -122,10 +118,19 @@ export const Generator: React.FC<GeneratorProps> = ({ initialUrl, onUrlConfirm, 
                        <span className="text-5xl">📱</span>
                    )}
                 </div>
-                <h2 className="text-2xl font-bold text-white tracking-tight">
-                  {usePwaSetup(activeUrl) && document.title}
-                </h2>
-                <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-medium">
+                
+                {/* Editable App Name */}
+                <div className="w-full">
+                    <label className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1 block">Nome do App</label>
+                    <input 
+                        type="text" 
+                        value={appName}
+                        onChange={(e) => setAppName(e.target.value)}
+                        className="bg-transparent text-2xl font-bold text-white text-center w-full focus:outline-none focus:border-b-2 focus:border-blue-500 transition-all border-b-2 border-transparent px-2 py-1"
+                    />
+                </div>
+
+                <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-medium">
                   <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
                   Configurado
                 </div>
