@@ -7,8 +7,8 @@ export const usePwaSetup = (targetUrl: string | null) => {
   useEffect(() => {
     if (!targetUrl) return;
 
-    // Use Google's favicon service with higher res request
-    const googleIconUrl = `https://www.google.com/s2/favicons?domain=${targetUrl}&sz=256`;
+    // Use Google's favicon service with higher res request (512px)
+    const googleIconUrl = `https://www.google.com/s2/favicons?domain=${targetUrl}&sz=512`;
     setIconUrl(googleIconUrl);
 
     // Parse hostname for naming
@@ -37,10 +37,8 @@ export const usePwaSetup = (targetUrl: string | null) => {
     const linkApple = document.getElementById('dynamic-apple-icon') as HTMLLinkElement;
     if (linkApple) linkApple.href = googleIconUrl;
 
-    // 5. Generate and inject Manifest
-    // CRITICAL: We use hash navigation (#site=...) for start_url because query params (?) 
-    // are often stripped by iOS or static hosts when launching PWAs.
-    // We construct the start_url to point to the current root + the hash config.
+    // 5. Generate and inject Manifest dynamically
+    // This allows the PWA installation to inherit the target site's identity
     const baseUrl = window.location.href.split('#')[0];
     const safeStartUrl = `${baseUrl}#site=${encodeURIComponent(targetUrl)}`;
 
@@ -49,8 +47,8 @@ export const usePwaSetup = (targetUrl: string | null) => {
       short_name: hostname,
       start_url: safeStartUrl,
       display: 'standalone',
-      background_color: '#0f172a', // Matching Slate-900
-      theme_color: '#0f172a',
+      background_color: '#000000', // Standard black background for native feel
+      theme_color: '#000000', // Matches status bar for most apps
       icons: [
         {
           src: googleIconUrl,
